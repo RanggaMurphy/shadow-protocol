@@ -272,6 +272,9 @@ export function buildFacility(scene, quality) {
   barrelAt(33, 21);
   // Corridor 16 chokepoint crates.
   crateAt(3, 16); crateAt(32, 16);
+  // Extra groupings: corridor ends, hall edge, storage depth.
+  crateAt(2, 8); crateAt(33, 8); barrelAt(2, 16);
+  crateAt(20, 21); barrelAt(27, 14); crateAt(24, 9);
   // Control room consoles (north edge) and crates.
   for (const col of [3, 5, 7]) {
     const { x, z } = centreOf(col, 9);
@@ -396,6 +399,12 @@ export function buildFacility(scene, quality) {
   }
   roomLight(17, 8, 0xcfe0ee, 34, 27); // north corridor
   roomLight(17, 16, 0xcfe0ee, 34, 27); // south corridor
+  roomLight(6, 8, 0xcfe0ee, 26, 24); // north corridor, west end
+  roomLight(28, 8, 0xcfe0ee, 26, 24); // north corridor, east end
+  roomLight(6, 16, 0xcfe0ee, 26, 24); // south corridor, west end
+  roomLight(28, 16, 0xcfe0ee, 26, 24); // south corridor, east end
+  roomLight(8, 19, 0xd6e4f2, 24, 22); // entry hall, west side
+  roomLight(26, 19, 0xd6e4f2, 24, 22); // entry hall, east side
   roomLight(17, 20, 0xd6e4f2, 38, 31); // entry hall
   roomLight(17, 11, 0xcfe0ee, 30, 25); // operations
   roomLight(6, 11, 0xcfe0ee, 28, 23); // control
@@ -417,7 +426,8 @@ export function buildFacility(scene, quality) {
     color: 0x9db9cc, transparent: true, opacity: 0.028, blending: THREE.AdditiveBlending,
     depthWrite: false, side: THREE.FrontSide, fog: false });
   const coneGeo = new THREE.ConeGeometry(1.7, WALL_HEIGHT - 0.35, 20, 1, true);
-  for (const [col, row] of [[8, 8], [17, 8], [26, 8], [8, 16], [17, 16], [26, 16], [10, 20], [24, 20], [17, 11], [6, 11], [28, 11], [5, 3], [28, 3], [16, 3]]) {
+  for (const [col, row] of [[8, 8], [17, 8], [26, 8], [8, 16], [17, 16], [26, 16], [10, 20], [24, 20], [17, 11], [6, 11], [28, 11], [5, 3], [28, 3], [16, 3],
+    [3, 8], [12, 8], [22, 8], [31, 8], [3, 16], [12, 16], [22, 16], [31, 16], [8, 19], [26, 19], [13, 5], [20, 12], [24, 5]]) {
     const { x, z } = centreOf(col, row);
     const housing = new THREE.Mesh(housingGeo, housingMaterial);
     housing.position.set(x, WALL_HEIGHT - 0.015, z);
@@ -431,7 +441,7 @@ export function buildFacility(scene, quality) {
   }
   // Wall-mounted tube strips along the two corridors (cool white, like caged fluorescents).
   const neonMaterial = new THREE.MeshStandardMaterial({
-    color: 0x14161a, emissive: 0xcfe0ea, emissiveIntensity: 1.1, roughness: 0.6 });
+    color: 0x14161a, emissive: 0xcfe0ea, emissiveIntensity: 1.35, roughness: 0.6 });
   const neonGeo = new THREE.BoxGeometry(3.4, 0.07, 0.07);
   for (const row of [8, 16]) {
     for (let col = 3; col < COLS - 2; col += 5) {
@@ -519,6 +529,134 @@ export function buildFacility(scene, quality) {
     coneGroup.add(base);
     coneGroup.position.set(x + 1.1, 0, z + 0.9);
     scene.add(coneGroup);
+  }
+
+  // --- Environment detail pass: wall panels, vents, pipe runs, stencil door labels,
+  // walkway markings, desks with monitors, locker banks and floor cables. Wall and floor
+  // dressing is visual only; desks and lockers go through addBox so they collide. ---
+  const detailPanelMaterial = new THREE.MeshStandardMaterial({ color: 0x39404a, roughness: 0.6, metalness: 0.5 });
+  const screenPanelMaterial = new THREE.MeshBasicMaterial({ map: textures.screen });
+  const doorMaterial = new THREE.MeshStandardMaterial({
+    map: textures.door, bumpMap: textures.door, bumpScale: 0.2, roughness: 0.6, metalness: 0.4 });
+  function flatPanel(x, y, z, w, h, material) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.07), material);
+    mesh.position.set(x, y, z);
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    return mesh;
+  }
+  // Corridor wall panels and vents (north faces of both corridors, hall north wall).
+  for (const [col, faceZ] of [[6, -27.95], [13, -27.95], [20, -27.95], [30, -27.95],
+    [6, 4.05], [20, 4.05], [30, 4.05], [12, 12.05], [22, 12.05]]) {
+    const { x } = centreOf(col, 8);
+    flatPanel(x, 1.85, faceZ, 2.4, 1.5, detailPanelMaterial);
+    flatPanel(x, 1.85, faceZ + 0.05, 1.1, 0.7, screenPanelMaterial);
+  }
+  for (const [col, faceZ] of [[9, -27.95], [24, -27.95], [10, 4.05], [26, 4.05], [17, 12.05]]) {
+    const { x } = centreOf(col, 8);
+    flatPanel(x, 2.95, faceZ, 0.95, 0.6, rackMaterial); // vent grille
+  }
+  // Vertical pipe pairs at corridor corners and in the server room.
+  const pipeMaterial = conduitMaterial;
+  for (const [px, pz] of [[-67.8, -27.8], [65.8, -27.8], [-67.8, 4.2], [65.8, 4.2], [45.8, -53.8], [-53.8, -53.8]]) {
+    for (const off of [0, 0.22]) {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, WALL_HEIGHT, 8), pipeMaterial);
+      pipe.position.set(px + off, WALL_HEIGHT / 2, pz);
+      pipe.castShadow = true;
+      scene.add(pipe);
+    }
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), pipeMaterial);
+    elbow.position.set(px, WALL_HEIGHT - 0.3, pz);
+    scene.add(elbow);
+  }
+  // Stencil door labels above the doorways (painted plate + letterspaced text).
+  function makeLabelTexture(text) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#20242b';
+    ctx.fillRect(0, 0, 512, 128);
+    ctx.strokeStyle = 'rgba(200,212,224,0.5)';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(6, 6, 500, 116);
+    ctx.fillStyle = 'rgba(216,222,228,0.85)';
+    ctx.font = 'bold 52px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 256, 84);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+  for (const [text, x, z] of [
+    ['LABORATORY', -52, -27.93], ['TERMINAL', -2, -27.93], ['SERVER', 38, -27.93],
+    ['CONTROL', -52, 4.07], ['OPERATIONS', -2, 4.07], ['STORAGE', 38, 4.07],
+  ]) {
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85),
+      new THREE.MeshBasicMaterial({ map: makeLabelTexture(text) }));
+    label.position.set(x, 2.95, z);
+    scene.add(label);
+  }
+  // Walkway edge lines along both corridors.
+  const lineMaterial = new THREE.MeshStandardMaterial({
+    color: 0x77683a, roughness: 0.9, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1 });
+  for (const rowZ of [-26, 6]) {
+    for (const off of [-1.35, 1.35]) {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(128, 0.14), lineMaterial);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, 0.011, rowZ + off);
+      line.receiveShadow = true;
+      scene.add(line);
+    }
+  }
+  // Desks with monitors and chairs: control room pair, ops room pair.
+  function deskAt(col, row, flip = 1) {
+    const { x, z } = centreOf(col, row);
+    addBox(x, z, 3.2, 1.1, 0.78, darkMetal);
+    const monitor = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.68),
+      new THREE.MeshBasicMaterial({ map: textures.screen }));
+    monitor.position.set(x - 0.6, 1.25, z - 0.25 * flip);
+    monitor.rotation.x = -0.1;
+    if (flip < 0) monitor.rotation.y = Math.PI;
+    scene.add(monitor);
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.08), darkMetal);
+    stand.position.set(x - 0.6, 0.98, z - 0.22 * flip);
+    scene.add(stand);
+    const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.3), detailPanelMaterial);
+    keyboard.position.set(x + 0.7, 0.8, z + 0.15 * flip);
+    scene.add(keyboard);
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.09, 12), detailPanelMaterial);
+    seat.position.set(x, 0.5, z + 1.05 * flip);
+    seat.castShadow = true;
+    scene.add(seat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.08), detailPanelMaterial);
+    back.position.set(x, 0.95, z + 1.32 * flip);
+    scene.add(back);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), darkMetal);
+    post.position.set(x, 0.25, z + 1.05 * flip);
+    scene.add(post);
+  }
+  deskAt(3, 13); deskAt(7, 13);
+  deskAt(13, 13, -1); deskAt(20, 13, -1);
+  // Locker banks: laboratory west wall, entry hall north wall.
+  {
+    const lab = centreOf(1, 3);
+    addBox(lab.x - 1.7, lab.z, 0.6, 2.8, 2.1, doorMaterial);
+    const hall = centreOf(6, 18);
+    addBox(hall.x, hall.z - 1.6, 3.4, 0.55, 2.1, doorMaterial);
+    const hall2 = centreOf(28, 18);
+    addBox(hall2.x, hall2.z - 1.6, 3.4, 0.55, 2.1, doorMaterial);
+  }
+  // Floor cables: flat dark runs from the server racks and lab benches (visual only).
+  const cableMaterial = new THREE.MeshStandardMaterial({
+    color: 0x141519, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1 });
+  for (const [x, z, len, rot] of [[42, -46, 5.5, 0.2], [50, -38, 4.2, -0.5], [-46, -44, 4.6, 0.9], [-30, -36, 3.8, 0.1], [8, 18, 4.4, 0.7]]) {
+    const cable = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.16), cableMaterial);
+    cable.rotation.x = -Math.PI / 2;
+    cable.rotation.z = rot;
+    cable.position.set(x, 0.012, z);
+    cable.receiveShadow = true;
+    scene.add(cable);
   }
 
   const coverPoints = computeCoverPoints(props);

@@ -81,8 +81,82 @@ function buildViewModel(id) {
     box(0.012, 0.012, 0.012, SIGHT_DOT, 0, 0.085, -0.18, group).name = 'sightDot';
     tipZ = -0.24;
   }
+  addHands(group, id);
   group.userData.tipZ = tipZ;
   return group;
+}
+
+// --- First-person hands: black gloves and bare forearms with a sleeve cuff, CS-style. ---
+// Hands are children of each weapon model, so recoil, ADS and the reload dip carry them.
+const GLOVE_MAT = new THREE.MeshStandardMaterial({ color: 0x23252b, roughness: 0.78, metalness: 0.02 });
+const SKIN_MAT = new THREE.MeshStandardMaterial({ color: 0x8a5f43, roughness: 0.72, metalness: 0 });
+const CUFF_MAT = new THREE.MeshStandardMaterial({ color: 0x2e3440, roughness: 0.95, metalness: 0 });
+
+function limb(ax, ay, az, bx, by, bz, radius, material, parent) {
+  const a = new THREE.Vector3(ax, ay, az);
+  const b = new THREE.Vector3(bx, by, bz);
+  const length = Math.max(0.02, a.distanceTo(b) - radius * 0.5);
+  const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 3, 10), material);
+  mesh.position.copy(a).lerp(b, 0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.sub(a).normalize());
+  parent.add(mesh);
+  return mesh;
+}
+
+function hand(x, y, z, parent, { rx = 0, ry = 0, rz = 0, thumbSide = 0.042, scale = 1 } = {}) {
+  const grip = new THREE.Group();
+  grip.position.set(x, y, z);
+  grip.rotation.set(rx, ry, rz);
+  grip.scale.setScalar(scale);
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), GLOVE_MAT);
+  palm.scale.set(0.9, 0.72, 1.3);
+  grip.add(palm);
+  const fingers = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), GLOVE_MAT);
+  fingers.scale.set(0.95, 0.6, 0.95);
+  fingers.position.set(0, -0.02, -0.036);
+  grip.add(fingers);
+  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.015, 0.03, 3, 8), GLOVE_MAT);
+  thumb.position.set(thumbSide, -0.004, -0.018);
+  thumb.rotation.set(-0.5, 0, 0.7);
+  grip.add(thumb);
+  parent.add(grip);
+  return grip;
+}
+
+/** A forearm running from below the frame (sx, sy, sz) into the hand at (hx, hy, hz), cuffed at the wrist end. */
+function forearm(sx, sy, sz, hx, hy, hz, parent) {
+  limb(sx, sy, sz, hx, hy, hz, 0.042, SKIN_MAT, parent);
+  const cuffEnd = new THREE.Vector3(sx, sy, sz).lerp(new THREE.Vector3(hx, hy, hz), 0.38);
+  limb(sx, sy, sz, cuffEnd.x, cuffEnd.y, cuffEnd.z, 0.049, CUFF_MAT, parent);
+}
+
+function addHands(group, id) {
+  if (id === 'pistol') {
+    // Two-handed grip: firing hand on the grip, support hand wrapped under it.
+    hand(0.004, -0.165, 0.055, group, { rx: 0.22 });
+    forearm(0.13, -0.58, 0.06, 0.01, -0.185, 0.075, group);
+    hand(-0.03, -0.19, 0.062, group, { rx: 0.22, rz: 0.3, thumbSide: -0.042 });
+    forearm(-0.15, -0.58, 0.06, -0.032, -0.205, 0.082, group);
+    return;
+  }
+  // Firing hand on the pistol grip of every long gun.
+  const gripZ = id === 'sniper' ? 0.18 : id === 'smg' ? 0.13 : id === 'shotgun' ? 0.17 : 0.16;
+  hand(0.01, -0.172, gripZ, group, { rx: 0.45, scale: 1.15 });
+  forearm(0.2, -0.6, 0.06, 0.016, -0.19, gripZ + 0.02, group);
+  // Support hand: under the handguard / pump / forestock, or on the SMG foregrip.
+  if (id === 'ar') {
+    hand(0, -0.075, -0.34, group, { rx: -0.5 });
+    forearm(-0.24, -0.6, 0.06, -0.012, -0.088, -0.325, group);
+  } else if (id === 'shotgun') {
+    hand(0, -0.1, -0.36, group, { rx: -0.4 });
+    forearm(-0.24, -0.6, 0.06, -0.012, -0.11, -0.345, group);
+  } else if (id === 'sniper') {
+    hand(0, -0.11, -0.28, group, { rx: -0.5 });
+    forearm(-0.24, -0.6, 0.06, -0.012, -0.12, -0.265, group);
+  } else if (id === 'smg') {
+    hand(0, -0.1, -0.19, group, { rx: 0.15, thumbSide: -0.042 });
+    forearm(-0.23, -0.59, 0.06, -0.012, -0.112, -0.18, group);
+  }
 }
 
 function makeFlashTexture() {
@@ -109,6 +183,11 @@ export function createWeapons(camera, audio, effects, hooks) {
   const holder = new THREE.Group();
   holder.scale.setScalar(1.12);
   camera.add(holder);
+  // A soft warm fill at the camera so the view-model — gun metal, gloves, forearms —
+  // reads against the night facility instead of going silhouette-black.
+  const vmLight = new THREE.PointLight(0xffe8c8, 2.4, 4.5, 1.6);
+  vmLight.position.set(0.2, 0.05, -0.1);
+  camera.add(vmLight);
   const flashTexture = makeFlashTexture();
 
   const states = WEAPONS.map((def, index) => {
@@ -190,6 +269,18 @@ export function createWeapons(camera, audio, effects, hooks) {
       reloading = 0;
       switching = 0;
       bloom = 0;
+    },
+
+    /** Team Clash round change: keep the selected weapon, top its magazine back up. */
+    roundReset() {
+      reloading = 0;
+      switching = 0;
+      switchTarget = -1;
+      bloom = 0;
+      const state = states[currentIndex];
+      state.mag = state.def.magSize;
+      state.cooldown = 0;
+      states.forEach((entry, index) => { entry.model.visible = index === currentIndex; });
     },
 
     fireOnce(player) {
@@ -290,7 +381,7 @@ export function createWeapons(camera, audio, effects, hooks) {
       kickRot = Math.max(0, kickRot - dt * kickRot * 8 - dt * 0.02);
       swayX += ((input.lookDX * -0.0006) - swayX) * Math.min(1, dt * 8);
       swayY += ((input.lookDY * 0.0006) - swayY) * Math.min(1, dt * 8);
-      const hipPos = { x: 0.26, y: -0.245, z: -0.45 };
+      const hipPos = { x: 0.235, y: -0.145, z: -0.45 };
       const adsPos = { x: 0, y: -0.148, z: -0.35 };
       const dip = switching > 0 ? Math.sin((switching / 0.26) * Math.PI) * 0.22 : 0;
       const reloadDip = reloading > 0 ? Math.sin((1 - reloading / reloadDuration) * Math.PI) * 0.16 : 0;
