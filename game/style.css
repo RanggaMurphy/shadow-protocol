@@ -9,6 +9,12 @@ body {
   -webkit-user-select: none;
 }
 #game, #game canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#vignette {
+  position: fixed; inset: 0; pointer-events: none; z-index: 3;
+  background:
+    linear-gradient(to bottom, rgba(3, 6, 10, 0.20), transparent 16%, transparent 85%, rgba(2, 4, 7, 0.24)),
+    radial-gradient(ellipse at center, transparent 52%, rgba(2, 4, 8, 0.42) 100%);
+}
 .hidden { display: none !important; }
 
 /* ---------- HUD ---------- */

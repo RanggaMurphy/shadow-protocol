@@ -94,6 +94,29 @@ export function createEffects(scene) {
     slot.life = 0.055;
   }
 
+  // Ambient dust: a few hundred motes drifting slowly through the light, everywhere in the
+  // facility. Pure atmosphere — tiny, dim, and updated on a sine wobble from base positions.
+  const DUST_COUNT = 420;
+  const dustBase = new Float32Array(DUST_COUNT * 3);
+  const dustPhase = new Float32Array(DUST_COUNT);
+  const dustPositions = new Float32Array(DUST_COUNT * 3);
+  for (let i = 0; i < DUST_COUNT; i += 1) {
+    dustBase[i * 3] = (Math.random() - 0.5) * 138;
+    dustBase[i * 3 + 1] = 0.3 + Math.random() * 3.1;
+    dustBase[i * 3 + 2] = (Math.random() - 0.5) * 112;
+    dustPhase[i] = Math.random() * Math.PI * 2;
+  }
+  dustPositions.set(dustBase);
+  const dustGeometry = new THREE.BufferGeometry();
+  dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+  const dust = new THREE.Points(dustGeometry, new THREE.PointsMaterial({
+    size: 0.03, map: sprite, color: 0x9fb8cc, transparent: true, opacity: 0.22,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+  }));
+  dust.frustumCulled = false;
+  scene.add(dust);
+  let dustTime = 0;
+
   // Shockwave rings for explosions.
   const ringPool = [];
   for (let i = 0; i < 4; i += 1) {
@@ -149,10 +172,18 @@ export function createEffects(scene) {
     muzzle(pos, colorHex = 0xffc37a) {
       flashLight.position.copy(pos);
       flashLight.color.setHex(colorHex);
-      flashLight.intensity = 26;
+      flashLight.intensity = 38;
       flashLife = 0.05;
     },
     update(dt) {
+      dustTime += dt;
+      for (let i = 0; i < DUST_COUNT; i += 1) {
+        const phase = dustPhase[i];
+        dustPositions[i * 3] = dustBase[i * 3] + Math.sin(dustTime * 0.11 + phase) * 0.85;
+        dustPositions[i * 3 + 1] = dustBase[i * 3 + 1] + Math.sin(dustTime * 0.07 + phase * 1.7) * 0.3;
+        dustPositions[i * 3 + 2] = dustBase[i * 3 + 2] + Math.cos(dustTime * 0.09 + phase) * 0.85;
+      }
+      dustGeometry.attributes.position.needsUpdate = true;
       for (let i = 0; i < MAX_PARTICLES; i += 1) {
         if (life[i] <= 0) continue;
         life[i] -= dt;
