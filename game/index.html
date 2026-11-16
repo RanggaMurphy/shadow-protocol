@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHADOW PROTOCOL — Tactical FPS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="game"></div>
+
+<!-- ======================= HUD ======================= -->
+<div id="hud" class="hidden">
+  <div id="damage-vignette"></div>
+  <div id="scope" class="hidden">
+    <div class="scope-h"></div>
+    <div class="scope-v"></div>
+  </div>
+
+  <div id="crosshair">
+    <span class="ch top"></span><span class="ch bottom"></span>
+    <span class="ch left"></span><span class="ch right"></span>
+    <span class="ch dot"></span>
+  </div>
+  <div id="hitmarker">
+    <span class="hm a"></span><span class="hm b"></span>
+    <span class="hm c"></span><span class="hm d"></span>
+  </div>
+
+  <div id="objective">
+    <div class="obj-label">OBJECTIVE</div>
+    <div id="obj-text">INFILTRATE THE FACILITY</div>
+    <div id="obj-sub"></div>
+  </div>
+
+  <div id="topright">
+    <div id="wave-info">CAMPAIGN</div>
+    <div class="stat-row">SCORE <b id="score">0</b></div>
+    <div class="stat-row">KILLS <b id="kills">0</b></div>
+    <canvas id="minimap" width="180" height="150"></canvas>
+  </div>
+
+  <div id="statusbar">
+    <div class="bar-block">
+      <div class="bar-label">HEALTH <b id="hp-num">100</b></div>
+      <div class="bar"><div id="hp-fill"></div></div>
+      <div class="bar-label armor">ARMOR <b id="armor-num">0</b></div>
+      <div class="bar thin"><div id="armor-fill"></div></div>
+    </div>
+  </div>
+
+  <div id="weaponbox">
+    <div id="weapon-name">VK-7 ASSAULT RIFLE</div>
+    <div id="ammo"><span id="mag">30</span><span class="ammo-sep">/</span><span id="reserve">120</span></div>
+    <div id="reload-wrap" class="hidden"><div id="reload-fill"></div></div>
+    <div class="weapon-keys">1 AR &nbsp;2 SG &nbsp;3 SR &nbsp;4 SMG &nbsp;5 PISTOL</div>
+  </div>
+
+  <div id="interact" class="hidden">
+    <span>HOLD E — ACTIVATE TERMINAL</span>
+    <div class="interact-bar"><div id="interact-fill"></div></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<!-- ======================= SCREENS ======================= -->
+<div id="screen-menu" class="screen">
+  <div class="menu-inner">
+    <div class="game-logo">SHADOW<span>PROTOCOL</span></div>
+    <div class="tagline">TACTICAL FPS // OPERATION BLACKSITE</div>
+    <div class="menu-buttons">
+      <button id="btn-campaign" class="btn primary">▶ &nbsp;CAMPAIGN MISSION</button>
+      <button id="btn-survival" class="btn">▶ &nbsp;SURVIVAL / WAVE MODE</button>
+      <button id="btn-how" class="btn">BRIEFING / CONTROLS</button>
+      <button id="btn-settings" class="btn">SETTINGS</button>
+    </div>
+    <div class="menu-foot">WASD move · Mouse aim · Click fire · RMB aim · R reload · 1–5 weapons · Shift sprint · Ctrl crouch · Space jump · P pause</div>
+  </div>
+</div>
+
+<div id="screen-how" class="screen hidden">
+  <div class="menu-inner narrow">
+    <h2>MISSION BRIEFING</h2>
+    <p class="brief">You are the lone operator inserted into a hostile research facility. Fight through
+    the complex, eliminate all hostiles, activate the master terminal in the north chamber, then reach
+    the extraction pad in the yard and hold it until pickup.</p>
+    <div class="controls-grid">
+      <div><b>W A S D</b> Move</div><div><b>Mouse</b> Aim</div>
+      <div><b>Left Click</b> Fire</div><div><b>Right Click</b> Aim down sights</div>
+      <div><b>Shift</b> Sprint</div><div><b>Ctrl / C</b> Crouch</div>
+      <div><b>Space</b> Jump</div><div><b>R</b> Reload</div>
+      <div><b>1 – 5</b> Switch weapon</div><div><b>E</b> Interact / hold terminal</div>
+      <div><b>P / Esc</b> Pause</div><div><b>Barrels</b> Explosive — shoot them</div>
+    </div>
+    <p class="brief dim">Watch for supply drops: health, armor and ammo caches glow inside the facility.
+    Enemy classes differ — rushers close fast, marksmen keep their distance, heavies soak damage.
+    Hostiles take cover when hurt. So should you.</p>
+    <button id="btn-how-back" class="btn">← BACK</button>
+  </div>
+</div>
+
+<div id="screen-settings" class="screen hidden">
+  <div class="menu-inner narrow">
+    <h2>SETTINGS</h2>
+    <label class="setting">Mouse sensitivity
+      <input id="set-sens" type="range" min="0.3" max="2.5" step="0.05" value="1">
+    </label>
+    <label class="setting">Volume
+      <input id="set-vol" type="range" min="0" max="1" step="0.05" value="0.8">
+    </label>
+    <label class="setting">Quality
+      <select id="set-quality">
+        <option value="high">High — shadows on</option>
+        <option value="low">Low — shadows off, faster</option>
+      </select>
+    </label>
+    <button id="btn-set-back" class="btn">← BACK</button>
+  </div>
+</div>
+
+<div id="screen-pause" class="screen hidden">
+  <div class="menu-inner">
+    <h2>PAUSED</h2>
+    <div class="menu-buttons">
+      <button id="btn-resume" class="btn primary">RESUME</button>
+      <button id="btn-pause-settings" class="btn">SETTINGS</button>
+      <button id="btn-restart" class="btn">RESTART MISSION</button>
+      <button id="btn-quit" class="btn">QUIT TO MENU</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-over" class="screen hidden">
+  <div class="menu-inner">
+    <h2 id="over-title">MISSION COMPLETE</h2>
+    <div id="over-stats"></div>
+    <div class="menu-buttons">
+      <button id="btn-again" class="btn primary">PLAY AGAIN</button>
+      <button id="btn-over-menu" class="btn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+/* SHADOW PROTOCOL — dark military-futuristic UI: near-black panels, cyan/green neon accents,
+   letterspaced caps, thin bars. No external fonts or images; everything is CSS. */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #05070a; }
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color: #d7e6f2;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#game, #game canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+#damage-vignette {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 52%, rgba(200, 20, 10, 0.55) 100%);
+}
+#scope {
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at center, transparent 30vh, rgba(0,0,0,0.97) 31vh);
+}
+#scope .scope-h, #scope .scope-v { position: absolute; background: rgba(10, 14, 10, 0.9); }
+#scope .scope-h { left: 50%; top: 50%; width: 60vh; height: 1px; transform: translate(-50%, -50%); }
+#scope .scope-v { left: 50%; top: 50%; width: 1px; height: 60vh; transform: translate(-50%, -50%); }
+
+#crosshair { position: absolute; left: 50%; top: 50%; --spread: 10px; }
+#crosshair .ch { position: absolute; background: #aef3ff; box-shadow: 0 0 4px rgba(80, 220, 255, 0.9); }
+#crosshair .top { width: 2px; height: 9px; left: -1px; top: calc(-9px - var(--spread)); }
+#crosshair .bottom { width: 2px; height: 9px; left: -1px; top: var(--spread); }
+#crosshair .left { width: 9px; height: 2px; top: -1px; left: calc(-9px - var(--spread)); }
+#crosshair .right { width: 9px; height: 2px; top: -1px; left: var(--spread); }
+#crosshair .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
+
+#hitmarker { position: absolute; left: 50%; top: 50%; opacity: 0; transition: opacity 0.08s; }
+#hitmarker.show { opacity: 1; }
+#hitmarker .hm { position: absolute; width: 10px; height: 2px; background: #fff; }
+#hitmarker.kill .hm { background: #ff5348; }
+#hitmarker .a { transform: translate(-16px, -12px) rotate(45deg); }
+#hitmarker .b { transform: translate(6px, -12px) rotate(-45deg); }
+#hitmarker .c { transform: translate(-16px, 10px) rotate(-45deg); }
+#hitmarker .d { transform: translate(6px, 10px) rotate(45deg); }
+
+#objective {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  text-align: center; background: rgba(6, 12, 18, 0.55); padding: 8px 26px 9px;
+  border: 1px solid rgba(126, 226, 255, 0.25); border-top: 2px solid #37e0ff;
+}
+.obj-label { font-size: 10px; letter-spacing: 4px; color: #37e0ff; }
+#obj-text { font-size: 17px; font-weight: 600; letter-spacing: 2px; margin-top: 2px; }
+#obj-sub { font-size: 12px; color: #ffd94d; letter-spacing: 1px; min-height: 14px; }
+
+#topright { position: absolute; top: 18px; right: 18px; text-align: right; }
+#wave-info { font-size: 13px; letter-spacing: 3px; color: #37e0ff; margin-bottom: 4px; }
+.stat-row { font-size: 13px; letter-spacing: 2px; color: #9fb8cc; }
+.stat-row b { color: #fff; font-size: 16px; margin-left: 6px; }
+#minimap { margin-top: 8px; border: 1px solid rgba(126, 226, 255, 0.35); background: #0a0e14; opacity: 0.92; }
+
+#statusbar { position: absolute; left: 22px; bottom: 20px; width: 250px; }
+.bar-label { font-size: 11px; letter-spacing: 3px; color: #9fe8bb; margin: 6px 0 3px; }
+.bar-label b { color: #fff; float: right; letter-spacing: 0; }
+.bar-label.armor { color: #9fc6e8; }
+.bar { height: 13px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18); }
+.bar.thin { height: 8px; }
+#hp-fill { height: 100%; width: 100%; background: #53ff9e; transition: width 0.15s; }
+#armor-fill { height: 100%; width: 0%; background: #59b7ff; transition: width 0.15s; }
+
+#weaponbox { position: absolute; right: 22px; bottom: 20px; text-align: right; }
+#weapon-name { font-size: 13px; letter-spacing: 2px; color: #ffd94d; }
+#ammo { font-size: 40px; font-weight: 700; line-height: 1.05; }
+#ammo .ammo-sep { color: #5b7285; font-size: 24px; margin: 0 4px; }
+#reserve { font-size: 22px; color: #9fb8cc; }
+#reload-wrap { height: 5px; background: rgba(255,255,255,0.15); margin-top: 4px; }
+#reload-fill { height: 100%; width: 0%; background: #ffd94d; }
+.weapon-keys { font-size: 10px; letter-spacing: 1px; color: #5b7285; margin-top: 5px; }
+
+#interact {
+  position: absolute; left: 50%; bottom: 26%; transform: translateX(-50%);
+  text-align: center; font-size: 15px; letter-spacing: 2px; color: #ffe9a8;
+  background: rgba(6, 12, 18, 0.6); padding: 10px 22px; border: 1px solid rgba(255, 217, 77, 0.4);
+}
+.interact-bar { height: 6px; background: rgba(255,255,255,0.15); margin-top: 8px; width: 260px; }
+#interact-fill { height: 100%; width: 0%; background: #ffd94d; }
+
+#toast {
+  position: absolute; left: 50%; top: 24%; transform: translateX(-50%) scale(0.94);
+  font-size: 30px; font-weight: 700; letter-spacing: 6px; color: #fff;
+  text-shadow: 0 0 18px rgba(55, 224, 255, 0.8); opacity: 0; transition: all 0.25s;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* ---------- Screens ---------- */
+.screen {
+  position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 35%, rgba(16, 34, 48, 0.88), rgba(3, 5, 8, 0.96) 75%);
+  pointer-events: auto;
+}
+.menu-inner { text-align: center; max-width: 640px; padding: 30px; }
+.menu-inner.narrow { max-width: 560px; text-align: left; }
+.menu-inner.narrow h2 { text-align: center; }
+.game-logo {
+  font-size: 64px; font-weight: 800; letter-spacing: 8px; color: #eaf6ff; line-height: 0.95;
+  text-shadow: 0 0 26px rgba(55, 224, 255, 0.55);
+}
+.game-logo span { display: block; color: #37e0ff; }
+.tagline { margin: 14px 0 30px; letter-spacing: 5px; font-size: 12px; color: #ffd94d; }
+.menu-buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.btn {
+  pointer-events: auto; cursor: pointer; min-width: 320px; padding: 13px 22px;
+  font: 600 15px/1 "Segoe UI", Arial, sans-serif; letter-spacing: 3px;
+  color: #d7e6f2; background: rgba(20, 32, 44, 0.85); border: 1px solid rgba(126, 226, 255, 0.35);
+  transition: all 0.12s;
+}
+.btn:hover { background: rgba(38, 66, 88, 0.95); border-color: #37e0ff; color: #fff; transform: translateY(-1px); }
+.btn.primary { background: rgba(14, 74, 54, 0.9); border-color: #53ff9e; }
+.btn.primary:hover { background: rgba(20, 105, 76, 0.95); }
+.menu-foot { margin-top: 28px; font-size: 11px; letter-spacing: 1px; color: #5b7285; }
+.screen h2 { font-size: 34px; letter-spacing: 6px; color: #eaf6ff; margin-bottom: 20px; text-align: center; }
+.brief { font-size: 14px; line-height: 1.65; color: #b9cfdf; margin-bottom: 16px; }
+.brief.dim { color: #7d97ad; font-size: 13px; }
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px 26px; margin-bottom: 18px;
+  font-size: 13px; color: #9fb8cc;
+}
+.controls-grid b { color: #ffd94d; letter-spacing: 1px; margin-right: 6px; }
+.setting { display: block; margin-bottom: 18px; font-size: 14px; letter-spacing: 1px; color: #b9cfdf; }
+.setting input[type="range"] { width: 100%; margin-top: 8px; accent-color: #37e0ff; }
+.setting select {
+  width: 100%; margin-top: 8px; padding: 8px; background: #101c28; color: #d7e6f2;
+  border: 1px solid rgba(126, 226, 255, 0.35); font-size: 14px;
+}
+#over-stats { font-size: 16px; line-height: 2; letter-spacing: 2px; color: #b9cfdf; margin-bottom: 26px; text-align: center; }
+#over-stats b { color: #ffd94d; }
