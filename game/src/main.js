@@ -61,12 +61,16 @@ let elapsed = 0;
 const enemyHooks = {
   playerPos: player.pos,
   onDeath(enemy) {
+    if (enemy.team !== 'enemy') return; // friendly losses are not the player's kills
     kills += 1;
     score += enemy.type.score;
   },
 };
 
 const manager = createEnemyManager(scene, world, effects, audio);
+manager.setOnAgentDeath((agent) => {
+  if (mode === 'clash' && agent.team === 'enemy') score += 25; // elimination ticks for the team
+});
 
 function raycastProps(origin, dir, maxDist) {
   let best = null;
@@ -187,7 +191,8 @@ function damagePlayer(amount) {
     hurtSoundT = 0.18;
   }
   if (player.damage(amount)) {
-    gameOver(false);
+    if (mode === 'clash') hud.toast('YOU ARE DOWN — SPECTATING', 2.5);
+    else gameOver(false);
   }
 }
 
@@ -320,9 +325,21 @@ let wavePending = 0;
 let waveBreakT = 0;
 let totalSpawnedThisWave = 0;
 
-function spawnAt(type, col, row) {
+// Team Clash state: round-based 5v5, first to 6 rounds.
+let clashYou = 0;
+let clashEnemy = 0;
+let clashRound = 0;
+let clashPhase = 'live';
+let clashTimer = 100;
+let clashBreakT = 0;
+const CLASH_ALLIES = ['trooper', 'rusher', 'trooper', 'marksman'];
+const CLASH_ENEMIES = ['trooper', 'trooper', 'rusher', 'marksman', 'trooper'];
+const CLASH_ALLY_CELLS = [[15, 26], [19, 26], [16, 24], [18, 24]];
+const CLASH_ENEMY_CELLS = [[17, 2], [15, 3], [19, 3], [16, 4], [18, 2]];
+
+function spawnAt(type, col, row, team = 'enemy') {
   const { x, z } = centreOf(col, row);
-  return manager.spawn(type, x, z);
+  return manager.spawn(type, x, z, team);
 }
 function spawnStage(name) {
   if (stagesSpawned[name]) return;
@@ -507,6 +524,57 @@ function startWave() {
   void totalSpawnedThisWave;
 }
 
+// ---------- Team Clash ----------
+function startClashRound() {
+  clashRound += 1;
+  clashPhase = 'live';
+  clashTimer = 100;
+  manager.clear();
+  player.reset(world.playerSpawn);
+  weapons.roundReset();
+  CLASH_ALLIES.forEach((type, i) => {
+    const [col, row] = CLASH_ALLY_CELLS[i];
+    spawnAt(type, col, row, 'ally');
+  });
+  CLASH_ENEMIES.forEach((type, i) => {
+    const [col, row] = CLASH_ENEMY_CELLS[i];
+    spawnAt(type, col, row, 'enemy');
+  });
+  hud.setObjective('TEAM CLASH — ELIMINATE THE HOSTILE TEAM', `ROUND ${clashRound} · FIRST TO 6 ROUNDS`);
+  hud.toast(`ROUND ${clashRound}`, 2);
+}
+function clashRoundWin(winner) {
+  if (winner === 'you') {
+    clashYou += 1;
+    score += 300;
+  } else {
+    clashEnemy += 1;
+  }
+  hud.toast(winner === 'you'
+    ? `ROUND WON — YOU ${clashYou} · ${clashEnemy} ENEMY`
+    : `ROUND LOST — YOU ${clashYou} · ${clashEnemy} ENEMY`, 3);
+  audio.objectiveDone();
+  if (clashYou >= 6 || clashEnemy >= 6) {
+    gameOver(clashYou > clashEnemy);
+    return;
+  }
+  clashPhase = 'break';
+  clashBreakT = 3.6;
+}
+function updateClash(dt) {
+  if (clashPhase === 'break') {
+    clashBreakT -= dt;
+    if (clashBreakT <= 0) startClashRound();
+    return;
+  }
+  clashTimer -= dt;
+  const youAlive = (player.alive ? 1 : 0) + manager.aliveCount('ally');
+  const enemyAlive = manager.aliveCount('enemy');
+  if (enemyAlive === 0) clashRoundWin('you');
+  else if (youAlive === 0) clashRoundWin('enemy');
+  else if (clashTimer <= 0) clashRoundWin('enemy'); // clock out: defenders take the round
+}
+
 // ---------- Flow ----------
 const screens = {
   menu: document.getElementById('screen-menu'),
@@ -561,6 +629,11 @@ function startGame(chosenMode) {
     hud.setObjective('INFILTRATE THE FACILITY', 'BREACH THE COMPLEX TO THE NORTH');
     drawTerminal('locked', 0);
     hud.toast('OPERATION BLACKSITE');
+  } else if (mode === 'clash') {
+    clashYou = 0;
+    clashEnemy = 0;
+    clashRound = 0;
+    startClashRound();
   } else {
     hud.setObjective('SURVIVE');
     startWave();
@@ -577,12 +650,15 @@ function gameOver(won) {
   if (document.pointerLockElement) document.exitPointerLock();
   const minutes = Math.floor(elapsed / 60);
   const seconds = Math.floor(elapsed % 60).toString().padStart(2, '0');
-  document.getElementById('over-title').textContent = won ? 'MISSION COMPLETE' : mode === 'survival' ? `YOU SURVIVED ${wave} WAVE${wave === 1 ? '' : 'S'}` : 'OPERATOR DOWN';
+  document.getElementById('over-title').textContent = mode === 'clash'
+    ? (won ? 'TEAM CLASH — VICTORY' : 'TEAM CLASH — DEFEAT')
+    : won ? 'MISSION COMPLETE' : mode === 'survival' ? `YOU SURVIVED ${wave} WAVE${wave === 1 ? '' : 'S'}` : 'OPERATOR DOWN';
   document.getElementById('over-title').style.color = won ? '#53ff9e' : '#ff8a7a';
   document.getElementById('over-stats').innerHTML =
     `FINAL SCORE <b>${score.toLocaleString('en-US')}</b><br>` +
     `KILLS <b>${kills}</b> &nbsp;·&nbsp; TIME <b>${minutes}:${seconds}</b>` +
-    (mode === 'campaign' ? `<br>OBJECTIVE <b>${won ? 'COMPLETE' : phase.toUpperCase()}</b>` : '');
+    (mode === 'campaign' ? `<br>OBJECTIVE <b>${won ? 'COMPLETE' : phase.toUpperCase()}</b>` : '') +
+    (mode === 'clash' ? `<br>ROUNDS <b>YOU ${clashYou} — ${clashEnemy} ENEMY</b>` : '');
   showScreen('over');
 }
 
@@ -602,6 +678,7 @@ function quitToMenu() {
   manager.clear();
   audio.stopAlarm();
   audio.stopMusic();
+  hud.setClash(null);
   hud.showHud(false);
   weaponHolderVisible(false);
   showScreen('menu');
@@ -680,6 +757,7 @@ document.addEventListener('pointerlockchange', () => {
 
 // ---------- Menu wiring ----------
 document.getElementById('btn-campaign').addEventListener('click', () => { audio.unlock(); startGame('campaign'); });
+document.getElementById('btn-clash').addEventListener('click', () => { audio.unlock(); startGame('clash'); });
 document.getElementById('btn-survival').addEventListener('click', () => { audio.unlock(); startGame('survival'); });
 document.getElementById('btn-how').addEventListener('click', () => showScreen('how'));
 document.getElementById('btn-how-back').addEventListener('click', () => showScreen('menu'));
@@ -725,6 +803,29 @@ function stageShot() {
     wave = 4;
     elapsed = 388;
     gameOver(false);
+    return;
+  }
+  if (shotMode === 'clash') {
+    startGame('clash');
+    // Stage a mid-round firefight in the entry hall: hands on the rifle, a teammate on each
+    // flank, two hostiles pushing in from the south doors.
+    const spot = centreOf(17, 19);
+    player.pos.set(spot.x, 0, spot.z);
+    player.setLook(Math.PI, 0.01); // face south, down the hall
+    const foes = manager.list.filter((agent) => agent.team === 'enemy');
+    const pals = manager.list.filter((agent) => agent.team === 'ally');
+    const place = (agent, col, row, dx = 0) => {
+      if (!agent) return;
+      const cell = centreOf(col, row);
+      agent.group.position.set(cell.x + dx, 0, cell.z);
+      agent.lastKnown = player.pos.clone();
+      agent.memoryT = 30;
+    };
+    place(foes[0], 17, 21);
+    place(foes[1], 18, 22);
+    place(pals[0], 16, 20);
+    place(pals[1], 18, 20);
+    shotFireT = 2.6;
     return;
   }
   startGame('campaign');
@@ -774,7 +875,7 @@ function frame() {
       jump: keys.jump, sprint: keys.sprint, crouch: keys.crouch,
       lookDX, lookDY,
     };
-    if (shotMode === 'firefight' && shotFireT > 0) {
+    if ((shotMode === 'firefight' || shotMode === 'clash') && shotFireT > 0) {
       shotFireT -= dt;
       keys.firing = (shotFireT % 0.55) < 0.34;
       if (keys.firing) firePressed = true;
@@ -796,6 +897,9 @@ function frame() {
       playerSprinting: player.sprinting,
       playerCrouching: keys.crouch,
       onPlayerDamage: damagePlayer,
+      rallyPoints: mode === 'clash'
+        ? { ally: centreOf(17, 8), enemy: centreOf(17, 18) }
+        : null,
     });
     for (let i = pendingBooms.length - 1; i >= 0; i -= 1) {
       pendingBooms[i].t -= dt;
@@ -807,6 +911,7 @@ function frame() {
     updatePickups(dt);
     if (state === 'playing') {
       if (mode === 'campaign') updateCampaign(dt);
+      else if (mode === 'clash') updateClash(dt);
       else updateSurvival(dt);
     }
     // Survival drop chance on fresh kills.
@@ -817,6 +922,14 @@ function frame() {
       extractionPad: world.extractionPad,
       playerYaw: player.yaw,
     });
+    hud.setClash(state === 'playing' && mode === 'clash' ? {
+      you: clashYou,
+      enemy: clashEnemy,
+      round: clashRound,
+      youAlive: (player.alive ? 1 : 0) + manager.aliveCount('ally'),
+      enemyAlive: manager.aliveCount('enemy'),
+      time: clashPhase === 'live' ? clashTimer : 0,
+    } : null);
     // Extraction pad pulse.
     const padPulse = phase === 'extract' && mode === 'campaign' ? 0.65 + 0.35 * Math.sin(now * 6) : 0.45 + 0.2 * Math.sin(now * 2.4);
     world.extractionPad.mesh.material.opacity = padPulse;

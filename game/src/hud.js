@@ -30,6 +30,11 @@ export function createHUD() {
     interactFill: $('interact-fill'),
     toast: $('toast'),
     minimap: $('minimap'),
+    clashHud: $('clash-hud'),
+    clashYou: $('clash-you'),
+    clashEnemy: $('clash-enemy'),
+    clashAlive: $('clash-alive'),
+    clashTime: $('clash-time'),
   };
   const mapCtx = elements.minimap.getContext('2d');
 
@@ -84,6 +89,19 @@ export function createHUD() {
       elements.toast.classList.add('show');
       toastT = seconds;
     },
+    /** Team Clash scoreboard strip; pass null to hide it. */
+    setClash(info) {
+      if (!info) {
+        elements.clashHud.classList.add('hidden');
+        return;
+      }
+      elements.clashHud.classList.remove('hidden');
+      elements.clashYou.textContent = `YOU ${info.you}`;
+      elements.clashEnemy.textContent = `${info.enemy} ENEMY`;
+      elements.clashAlive.textContent = `ALIVE ${info.youAlive} v ${info.enemyAlive} · ROUND ${info.round}`;
+      const seconds = Math.max(0, Math.ceil(info.time));
+      elements.clashTime.textContent = `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
+    },
     hitmarker(kill) {
       elements.hitmarker.classList.toggle('kill', kill);
       elements.hitmarker.classList.add('show');
@@ -107,7 +125,7 @@ export function createHUD() {
       if (weapons.reloading) elements.reloadFill.style.width = `${weapons.reloadProgress * 100}%`;
       elements.score.textContent = view.score.toLocaleString('en-US');
       elements.kills.textContent = view.kills;
-      elements.waveInfo.textContent = view.mode === 'survival' ? `WAVE ${view.wave}` : 'CAMPAIGN';
+      elements.waveInfo.textContent = view.mode === 'survival' ? `WAVE ${view.wave}` : view.mode === 'clash' ? 'TEAM CLASH' : 'CAMPAIGN';
 
       // Crosshair spread grows with bloom and movement.
       const spreadPx = 7 + weapons.bloom * 26 + (player.sprinting ? 7 : 0) + (1 - weapons.adsT) * 3;
@@ -139,9 +157,9 @@ export function createHUD() {
         mapCtx.arc(pad.x, pad.y, 4, 0, Math.PI * 2);
         mapCtx.fill();
       }
-      mapCtx.fillStyle = '#ff5348';
       for (const enemy of view.enemies) {
         if (!enemy.alive) continue;
+        mapCtx.fillStyle = enemy.team === 'ally' ? '#53c8ff' : '#ff5348';
         const p = worldToMap(enemy.group.position.x, enemy.group.position.z);
         mapCtx.fillRect(p.x - 1.8, p.y - 1.8, 3.6, 3.6);
       }
