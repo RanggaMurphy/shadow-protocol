@@ -5,9 +5,10 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { WEAPONS } from './config.js';
 
-const GUNMETAL = new THREE.MeshStandardMaterial({ color: 0x39414d, roughness: 0.38, metalness: 0.6, emissive: 0x0d1118 });
-const DARK_PART = new THREE.MeshStandardMaterial({ color: 0x1b1f26, roughness: 0.55, metalness: 0.4, emissive: 0x05070a });
-const GRIP_PART = new THREE.MeshStandardMaterial({ color: 0x39332c, roughness: 0.85, metalness: 0.05 });
+const GUNMETAL = new THREE.MeshStandardMaterial({ color: 0x323842, roughness: 0.42, metalness: 0.72, emissive: 0x0a0d12 });
+const DARK_PART = new THREE.MeshStandardMaterial({ color: 0x1b1f26, roughness: 0.52, metalness: 0.45, emissive: 0x05070a });
+const GRIP_PART = new THREE.MeshStandardMaterial({ color: 0x3a342a, roughness: 0.88, metalness: 0.05 });
+const TAN_PART = new THREE.MeshStandardMaterial({ color: 0x5c5142, roughness: 0.8, metalness: 0.08 });
 const SIGHT_DOT = new THREE.MeshBasicMaterial({ color: 0x53ff9e });
 
 function box(w, h, d, material, x, y, z, parent) {
@@ -29,12 +30,15 @@ function buildViewModel(id) {
   let tipZ = -0.6;
   if (id === 'ar') {
     box(0.09, 0.13, 0.52, GUNMETAL, 0, 0, -0.1, group); // receiver
+    box(0.095, 0.05, 0.3, DARK_PART, 0, -0.075, -0.05, group); // lower rail / magwell
     tube(0.028, 0.34, DARK_PART, 0, 0.03, -0.5, group); // barrel
+    tube(0.042, 0.2, TAN_PART, 0, 0.03, -0.4, group); // polymer handguard
     box(0.05, 0.05, 0.1, DARK_PART, 0, 0.03, -0.66, group); // muzzle brake
+    box(0.03, 0.025, 0.44, DARK_PART, 0, 0.085, -0.12, group); // top picatinny rail
     const mag = box(0.06, 0.2, 0.1, DARK_PART, 0, -0.15, -0.12, group);
     mag.rotation.x = 0.25;
     box(0.07, 0.16, 0.09, GRIP_PART, 0, -0.13, 0.16, group).rotation.x = 0.3; // grip
-    box(0.07, 0.05, 0.22, DARK_PART, 0, 0.01, 0.3, group); // stock
+    box(0.07, 0.05, 0.22, TAN_PART, 0, 0.01, 0.3, group); // stock
     box(0.02, 0.07, 0.02, DARK_PART, 0, 0.11, -0.3, group); // front post
     box(0.1, 0.03, 0.03, DARK_PART, 0, 0.1, 0.05, group); // rear sight bar
     const dot = box(0.012, 0.012, 0.012, SIGHT_DOT, 0, 0.105, -0.3, group);
@@ -53,7 +57,10 @@ function buildViewModel(id) {
     tube(0.02, 0.55, DARK_PART, 0, 0.02, -0.6, group);
     box(0.06, 0.07, 0.12, DARK_PART, 0, 0.02, -0.9, group); // muzzle
     tube(0.045, 0.24, DARK_PART, 0, 0.13, -0.05, group); // scope
+    tube(0.032, 0.02, new THREE.MeshStandardMaterial({ color: 0x0d1a16, roughness: 0.15, metalness: 0.4, emissive: 0x1d4034, emissiveIntensity: 0.7 }), 0, 0.13, -0.18, group); // scope lens
     box(0.05, 0.05, 0.05, DARK_PART, 0, 0.07, -0.05, group); // scope mount
+    box(0.015, 0.16, 0.015, DARK_PART, -0.05, -0.08, -0.78, group).rotation.x = 0.5; // bipod legs
+    box(0.015, 0.16, 0.015, DARK_PART, 0.05, -0.08, -0.78, group).rotation.x = 0.5;
     box(0.055, 0.16, 0.09, DARK_PART, 0, -0.13, -0.08, group);
     box(0.07, 0.15, 0.1, GRIP_PART, 0, -0.12, 0.18, group).rotation.x = 0.3;
     box(0.07, 0.06, 0.26, GRIP_PART, 0, -0.02, 0.32, group); // stock with cheek rest

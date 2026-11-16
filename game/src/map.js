@@ -146,8 +146,10 @@ export function buildFacility(scene, quality) {
   const worldWidth = COLS * TILE;
   const worldDepth = ROWS * TILE;
 
-  const wallMaterial = new THREE.MeshStandardMaterial({ map: textures.wall, roughness: 0.85, metalness: 0.25 });
-  const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x39404c, roughness: 0.6, metalness: 0.5 });
+  const wallMaterial = new THREE.MeshStandardMaterial({
+    map: textures.wall, bumpMap: textures.wallBump, bumpScale: 0.5, roughness: 0.88, metalness: 0.12,
+  });
+  const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x2e333b, roughness: 0.48, metalness: 0.62 });
 
   // --- Walls as two instanced meshes: interior height and taller perimeter. ---
   const interiorCells = [];
@@ -180,9 +182,12 @@ export function buildFacility(scene, quality) {
   // --- Floors and ceiling. ---
   const indoorFloor = new THREE.Mesh(
     new THREE.PlaneGeometry(worldWidth, 23 * TILE),
-    new THREE.MeshStandardMaterial({ map: textures.floor, roughness: 0.7, metalness: 0.3 }),
+    new THREE.MeshStandardMaterial({
+      map: textures.floor, bumpMap: textures.floorBump, bumpScale: 0.35, roughness: 0.5, metalness: 0.38,
+    }),
   );
   textures.floor.repeat.set(COLS / 2, 23 / 2);
+  textures.floorBump.repeat.set(COLS / 2, 23 / 2);
   indoorFloor.rotation.x = -Math.PI / 2;
   indoorFloor.position.set(0, 0, (11.5 - ROWS / 2) * TILE);
   indoorFloor.receiveShadow = true;
@@ -190,7 +195,8 @@ export function buildFacility(scene, quality) {
 
   const yardFloor = new THREE.Mesh(
     new THREE.PlaneGeometry(worldWidth, 7 * TILE),
-    new THREE.MeshStandardMaterial({ map: textures.asphalt, roughness: 0.95, metalness: 0 }),
+    new THREE.MeshStandardMaterial({
+      map: textures.asphalt, bumpMap: textures.asphaltBump, bumpScale: 0.3, roughness: 0.96, metalness: 0 }),
   );
   yardFloor.rotation.x = -Math.PI / 2;
   yardFloor.position.set(0, -0.01, (26 - ROWS / 2) * TILE);
@@ -199,19 +205,34 @@ export function buildFacility(scene, quality) {
 
   const ceiling = new THREE.Mesh(
     new THREE.PlaneGeometry(worldWidth, 23 * TILE),
-    new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 0.95 }),
+    new THREE.MeshStandardMaterial({
+      map: textures.ceiling, bumpMap: textures.ceilingBump, bumpScale: 0.3, roughness: 0.92, metalness: 0.08 }),
   );
+  textures.ceiling.repeat.set(COLS / 2, 23 / 2);
+  textures.ceilingBump.repeat.set(COLS / 2, 23 / 2);
   ceiling.rotation.x = Math.PI / 2;
   ceiling.position.set(0, WALL_HEIGHT, (11.5 - ROWS / 2) * TILE);
   scene.add(ceiling);
 
+  // Ceiling beams: dark steel I-beams spanning the halls every few metres.
+  const beamMaterial = new THREE.MeshStandardMaterial({ color: 0x23262c, roughness: 0.55, metalness: 0.6 });
+  const beamGeo = new THREE.BoxGeometry(worldWidth - 2, 0.22, 0.34);
+  for (let row = 2; row < 23; row += 4) {
+    const beam = new THREE.Mesh(beamGeo, beamMaterial);
+    beam.position.set(0, WALL_HEIGHT - 0.13, (row + 0.5 - ROWS / 2) * TILE);
+    scene.add(beam);
+  }
+
   // --- Props: crates, racks, tables, consoles, pillars, barrels. Each is a collider too. ---
   const props = [];
   const colliders = [];
-  const crateMaterial = new THREE.MeshStandardMaterial({ map: textures.crate, roughness: 0.85 });
-  const rackMaterial = new THREE.MeshStandardMaterial({ map: textures.rack, roughness: 0.5, metalness: 0.4 });
-  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x2c313a, roughness: 0.55, metalness: 0.55 });
-  const barrelMaterial = new THREE.MeshStandardMaterial({ map: textures.barrel, roughness: 0.7, metalness: 0.3 });
+  const crateMaterial = new THREE.MeshStandardMaterial({
+    map: textures.crate, bumpMap: textures.crateBump, bumpScale: 0.4, roughness: 0.82, metalness: 0.05 });
+  const rackMaterial = new THREE.MeshStandardMaterial({
+    map: textures.rack, bumpMap: textures.rackBump, bumpScale: 0.25, roughness: 0.45, metalness: 0.5 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.5, metalness: 0.6 });
+  const barrelMaterial = new THREE.MeshStandardMaterial({
+    map: textures.barrel, bumpMap: textures.barrelBump, bumpScale: 0.45, roughness: 0.62, metalness: 0.45 });
 
   function addBox(cx, cz, w, d, h, material, yBase = 0) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
@@ -329,19 +350,27 @@ export function buildFacility(scene, quality) {
   const padCentre = centreOf(31, 25);
   const pad = new THREE.Mesh(
     new THREE.RingGeometry(2.2, 3.1, 40),
-    new THREE.MeshBasicMaterial({ color: 0x53ff9e, transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ color: 0x3fae74, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
   );
   pad.rotation.x = -Math.PI / 2;
   pad.position.set(padCentre.x, 0.03, padCentre.z);
   scene.add(pad);
-  const padLight = new THREE.PointLight(0x53ff9e, 12, 13, 1.8);
+  const padLight = new THREE.PointLight(0x3fae74, 12, 13, 1.8);
   padLight.position.set(padCentre.x, 2.2, padCentre.z);
   scene.add(padLight);
 
-  // --- Lights. ---
-  scene.add(new THREE.HemisphereLight(0x8fb4ff, 0x1a140d, 0.78));
-  scene.add(new THREE.AmbientLight(0x36405c, 0.5));
-  const moon = new THREE.DirectionalLight(0xa9c6ff, 1.15);
+  // --- Sky: a painted night dome over the yard (gradient, stars, moon glow). ---
+  const skyDome = new THREE.Mesh(
+    new THREE.SphereGeometry(255, 28, 14),
+    new THREE.MeshBasicMaterial({ map: textures.sky, side: THREE.BackSide, fog: false, depthWrite: false }),
+  );
+  skyDome.renderOrder = -1;
+  scene.add(skyDome);
+
+  // --- Lights. Hemisphere does the bounce fill: cool sky above, warm floor bounce below. ---
+  scene.add(new THREE.HemisphereLight(0x9db9d9, 0x35302a, 0.7));
+  scene.add(new THREE.AmbientLight(0x2c3648, 0.32));
+  const moon = new THREE.DirectionalLight(0xb4c9e8, 1.5);
   moon.position.set(38, 52, 68);
   moon.castShadow = quality === 'high';
   moon.shadow.mapSize.set(2048, 2048);
@@ -350,7 +379,9 @@ export function buildFacility(scene, quality) {
   moon.shadow.camera.top = 70;
   moon.shadow.camera.bottom = -70;
   moon.shadow.camera.far = 180;
-  moon.shadow.bias = -0.0006;
+  moon.shadow.bias = -0.0004;
+  moon.shadow.normalBias = 0.03;
+  moon.shadow.radius = 4;
   scene.add(moon);
   scene.add(moon.target);
 
@@ -363,28 +394,45 @@ export function buildFacility(scene, quality) {
     roomLights.push(light);
     return light;
   }
-  roomLight(17, 8, 0x9fd8ff, 26, 26); // north corridor
-  roomLight(17, 16, 0x9fd8ff, 26, 26); // south corridor
-  roomLight(17, 20, 0xbfd9ff, 30, 30); // entry hall
-  roomLight(17, 11, 0x9fd8ff, 24, 24); // operations
-  roomLight(6, 11, 0x9fd8ff, 22, 22); // control
-  roomLight(28, 11, 0xffd9a0, 22, 22); // storage
-  roomLight(5, 3, 0xa0ffd9, 20, 22); // laboratory
-  roomLight(28, 3, 0x9fd8ff, 22, 22); // server room
+  roomLight(17, 8, 0xcfe0ee, 34, 27); // north corridor
+  roomLight(17, 16, 0xcfe0ee, 34, 27); // south corridor
+  roomLight(17, 20, 0xd6e4f2, 38, 31); // entry hall
+  roomLight(17, 11, 0xcfe0ee, 30, 25); // operations
+  roomLight(6, 11, 0xcfe0ee, 28, 23); // control
+  roomLight(28, 11, 0xffd9a6, 28, 23); // storage (warm sodium)
+  roomLight(5, 3, 0xcfe6da, 26, 23); // laboratory
+  roomLight(28, 3, 0xcfe0ee, 28, 23); // server room
+  roomLight(16, 2, 0xcfe0ee, 30, 25); // terminal chamber working light
   const alarmLight = roomLight(16, 3, 0xff3b30, 0, 30); // terminal alarm, off until the defence
   alarmLight.position.y = 3.2;
 
-  // Ceiling light panels and neon strips (emissive only, no light cost).
-  const panelMaterial = new THREE.MeshBasicMaterial({ color: 0xbfe6ff });
-  const panelGeo = new THREE.BoxGeometry(2.6, 0.06, 0.7);
+  // Ceiling light fixtures: dark housing, emissive diffuser, and a faint volumetric cone so
+  // the light feels like it occupies the air. Emissive/cone only — the point lights do the work.
+  const panelMaterial = new THREE.MeshStandardMaterial({
+    color: 0x11151a, emissive: 0xd8e6f0, emissiveIntensity: 1.5, roughness: 0.6 });
+  const housingMaterial = new THREE.MeshStandardMaterial({ color: 0x1e2126, roughness: 0.5, metalness: 0.6 });
+  const panelGeo = new THREE.BoxGeometry(2.6, 0.05, 0.7);
+  const housingGeo = new THREE.BoxGeometry(2.9, 0.07, 1.0);
+  const coneMaterial = new THREE.MeshBasicMaterial({
+    color: 0x9db9cc, transparent: true, opacity: 0.028, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.FrontSide, fog: false });
+  const coneGeo = new THREE.ConeGeometry(1.7, WALL_HEIGHT - 0.35, 20, 1, true);
   for (const [col, row] of [[8, 8], [17, 8], [26, 8], [8, 16], [17, 16], [26, 16], [10, 20], [24, 20], [17, 11], [6, 11], [28, 11], [5, 3], [28, 3], [16, 3]]) {
     const { x, z } = centreOf(col, row);
+    const housing = new THREE.Mesh(housingGeo, housingMaterial);
+    housing.position.set(x, WALL_HEIGHT - 0.015, z);
+    scene.add(housing);
     const panel = new THREE.Mesh(panelGeo, panelMaterial);
-    panel.position.set(x, WALL_HEIGHT - 0.04, z);
+    panel.position.set(x, WALL_HEIGHT - 0.05, z);
     scene.add(panel);
+    const cone = new THREE.Mesh(coneGeo, coneMaterial);
+    cone.position.set(x, (WALL_HEIGHT - 0.35) / 2 + 0.12, z);
+    scene.add(cone);
   }
-  const neonMaterial = new THREE.MeshBasicMaterial({ color: 0x37e0ff });
-  const neonGeo = new THREE.BoxGeometry(3.4, 0.09, 0.09);
+  // Wall-mounted tube strips along the two corridors (cool white, like caged fluorescents).
+  const neonMaterial = new THREE.MeshStandardMaterial({
+    color: 0x14161a, emissive: 0xcfe0ea, emissiveIntensity: 1.1, roughness: 0.6 });
+  const neonGeo = new THREE.BoxGeometry(3.4, 0.07, 0.07);
   for (const row of [8, 16]) {
     for (let col = 3; col < COLS - 2; col += 5) {
       if (isSolid(col, row)) continue;
@@ -395,17 +443,82 @@ export function buildFacility(scene, quality) {
     }
   }
 
-  // Yard floodlight poles.
+  // Yard floodlight poles. Two of them carry real spotlights that pool light on the asphalt.
   const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.6, metalness: 0.6 });
   for (const [col, row] of [[3, 23], [32, 23], [3, 28], [32, 28]]) {
     const { x, z } = centreOf(col, row);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.4, 8), poleMaterial);
     pole.position.set(x, 2.7, z);
+    pole.castShadow = true;
     scene.add(pole);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.3), new THREE.MeshBasicMaterial({ color: 0xd8ecff }));
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.3),
+      new THREE.MeshStandardMaterial({ color: 0x14161a, emissive: 0xd6e6f5, emissiveIntensity: 1.3 }));
     head.position.set(x, 5.4, z);
     scene.add(head);
     colliders.push({ minX: x - 0.15, maxX: x + 0.15, minZ: z - 0.15, maxZ: z + 0.15, h: 5.4, kind: 'pole' });
+    if ((col === 3 && row === 23) || (col === 32 && row === 28)) {
+      const spot = new THREE.SpotLight(0xd6e6f5, 260, 34, 0.78, 0.6, 1.5);
+      spot.position.set(x, 5.35, z);
+      spot.target.position.set(x + (col === 3 ? 5 : -5), 0, z + (row === 23 ? 3 : -3));
+      scene.add(spot);
+      scene.add(spot.target);
+    }
+  }
+
+  // --- Dressing (visual only, no colliders): conduit runs, junction boxes, threshold
+  // hazard strips and yard traffic cones, all flush to walls, ceiling or floor. ---
+  const conduitMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.45, metalness: 0.7 });
+  const conduitGeo = new THREE.CylinderGeometry(0.05, 0.05, worldWidth - 6, 8);
+  for (const row of [8, 16]) {
+    for (const dy of [3.15, 2.98]) {
+      const pipe = new THREE.Mesh(conduitGeo, conduitMaterial);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.position.set(0, dy, (row - ROWS / 2) * TILE + 0.09);
+      scene.add(pipe);
+    }
+  }
+  const junctionMaterial = new THREE.MeshStandardMaterial({ color: 0x272b31, roughness: 0.55, metalness: 0.5 });
+  const ledMaterial = new THREE.MeshStandardMaterial({ color: 0x0c0e10, emissive: 0xd8a03c, emissiveIntensity: 1.2 });
+  const junctionGeo = new THREE.BoxGeometry(0.55, 0.8, 0.14);
+  const ledGeo = new THREE.BoxGeometry(0.07, 0.07, 0.02);
+  for (const [col, row, face] of [[2, 8, -1], [20, 8, -1], [33, 16, -1], [12, 16, -1], [2, 16, -1], [12, 18, -1], [24, 18, -1], [30, 14, 1]]) {
+    const { x, z } = centreOf(col, row);
+    const boxMesh = new THREE.Mesh(junctionGeo, junctionMaterial);
+    boxMesh.position.set(x - 1.2, 1.7, z + face * (TILE / 2 - 0.08));
+    scene.add(boxMesh);
+    const led = new THREE.Mesh(ledGeo, ledMaterial);
+    led.position.set(x - 1.2, 1.92, z + face * (TILE / 2 - 0.16));
+    scene.add(led);
+  }
+  const hazardMaterial = new THREE.MeshStandardMaterial({
+    map: textures.hazard, roughness: 0.85, metalness: 0.05,
+    polygonOffset: true, polygonOffsetFactor: -1 });
+  const hazardGeo = new THREE.PlaneGeometry(3.7, 0.55);
+  for (const [col, row] of [[4, 7], [16, 7], [27, 7], [4, 15], [16, 15], [27, 15], [8, 17], [17, 17], [10, 22], [24, 22]]) {
+    const { x, z } = centreOf(col, row);
+    const decal = new THREE.Mesh(hazardGeo, hazardMaterial);
+    decal.rotation.x = -Math.PI / 2;
+    decal.position.set(x + TILE / 2, 0.012, z);
+    decal.receiveShadow = true;
+    scene.add(decal);
+  }
+  const trafficConeMaterial = new THREE.MeshStandardMaterial({ color: 0x9c4a26, roughness: 0.8 });
+  const coneBandMaterial = new THREE.MeshStandardMaterial({ color: 0xcac2b2, roughness: 0.7 });
+  for (const [col, row] of [[2, 24], [33, 24], [18, 28], [9, 23]]) {
+    const { x, z } = centreOf(col, row);
+    const coneGroup = new THREE.Group();
+    const coneBody = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.72, 12), trafficConeMaterial);
+    coneBody.position.y = 0.4;
+    coneBody.castShadow = true;
+    coneGroup.add(coneBody);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.19, 0.14, 12), coneBandMaterial);
+    band.position.y = 0.42;
+    coneGroup.add(band);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.05, 0.56), trafficConeMaterial);
+    base.position.y = 0.025;
+    coneGroup.add(base);
+    coneGroup.position.set(x + 1.1, 0, z + 0.9);
+    scene.add(coneGroup);
   }
 
   const coverPoints = computeCoverPoints(props);

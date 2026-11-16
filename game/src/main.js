@@ -12,6 +12,7 @@ import { createPlayer } from './player.js';
 import { createWeapons } from './weapons.js';
 import { createEnemyManager } from './enemies.js';
 import { createHUD } from './hud.js';
+import { makeCaseTexture } from './textures.js';
 
 const params = new URLSearchParams(location.search);
 const shotMode = params.get('shot');
@@ -24,11 +25,13 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x070b12);
-scene.fog = new THREE.Fog(0x070b12, 55, 150);
+scene.background = new THREE.Color(0x0a1018);
+scene.fog = new THREE.Fog(0x111a29, 42, 175);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.08, 300);
 scene.add(camera);
@@ -210,29 +213,45 @@ const weaponHolderVisible = (visible) => { camera.children.forEach((child) => { 
 
 // ---------- Pickups ----------
 const PICKUP_STYLE = {
-  health: { color: 0x53ff9e, label: 'HEALTH +35' },
-  armor: { color: 0x59b7ff, label: 'ARMOR +50' },
-  ammo: { color: 0xffd94d, label: 'AMMO RESTOCKED' },
+  health: { color: 0x63d68f, label: 'HEALTH +35' },
+  armor: { color: 0x6fa8d8, label: 'ARMOR +50' },
+  ammo: { color: 0xd8b34d, label: 'AMMO RESTOCKED' },
 };
 const pickups = [];
+const caseTextures = {
+  health: makeCaseTexture('health'),
+  armor: makeCaseTexture('armor'),
+  ammo: makeCaseTexture('ammo'),
+};
+const caseBaseMaterial = new THREE.MeshStandardMaterial({ color: 0x1e2126, roughness: 0.6, metalness: 0.4 });
 function spawnPickup(type, x, z, temporary = false) {
   const style = PICKUP_STYLE[type];
   const group = new THREE.Group();
+  // A real supply case: painted hard-case with a dark base plate, a status LED and a
+  // soft ground ring in the type colour so it still reads at a glance mid-fight.
   const crate = new THREE.Mesh(
-    new THREE.BoxGeometry(0.55, 0.4, 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x1c222b, roughness: 0.5, emissive: style.color, emissiveIntensity: 0.55 }),
+    new THREE.BoxGeometry(0.62, 0.36, 0.46),
+    new THREE.MeshStandardMaterial({ map: caseTextures[type], roughness: 0.55, metalness: 0.15 }),
   );
-  crate.position.y = 0.2;
+  crate.position.y = 0.08;
+  crate.castShadow = true;
   group.add(crate);
-  const icon = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.1, 0.1),
-    new THREE.MeshBasicMaterial({ color: style.color }),
+  const basePlate = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.07, 0.52), caseBaseMaterial);
+  basePlate.position.y = -0.13;
+  group.add(basePlate);
+  const led = new THREE.Mesh(
+    new THREE.BoxGeometry(0.07, 0.03, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x0c0e10, emissive: style.color, emissiveIntensity: 1.6 }),
   );
-  icon.position.y = 0.62;
-  group.add(icon);
-  const icon2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), icon.material);
-  icon2.position.y = 0.62;
-  if (type !== 'ammo') group.add(icon2);
+  led.position.set(0.2, 0.2, -0.24);
+  group.add(led);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.5, 0.62, 28),
+    new THREE.MeshBasicMaterial({ color: style.color, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = -0.155;
+  group.add(ring);
   group.position.set(x, 0.25, z);
   scene.add(group);
   pickups.push({ type, group, active: true, respawnT: 0, temporary, lifeT: temporary ? 25 : Infinity, phase: Math.random() * 6 });

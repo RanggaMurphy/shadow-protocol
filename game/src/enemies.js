@@ -7,8 +7,9 @@ import * as THREE from '../vendor/three.module.min.js';
 import { ENEMY_TYPES } from './config.js';
 import { findPath, lineOfSight, collide } from './map.js';
 
-const DARK = new THREE.MeshStandardMaterial({ color: 0x1d2126, roughness: 0.7, metalness: 0.3 });
-const GUN = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.5, metalness: 0.5 });
+const DARK = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.62, metalness: 0.32 });
+const FABRIC = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.96, metalness: 0.0 });
+const GUN = new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.45, metalness: 0.55 });
 
 function part(w, h, d, material, x, y, z, parent) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
@@ -18,37 +19,87 @@ function part(w, h, d, material, x, y, z, parent) {
   return mesh;
 }
 
+// A human-proportioned operator (~1.85 m): fabric uniform underlayer, segmented armour
+// plates over it, helmet with an emissive visor slit, gloves, knee pads, belt pouches,
+// backpack and a radio with antenna. Same group pivots as always, so the animation
+// code (walk cycle, aim, crouch, death fall) drives it unchanged.
 function buildRig(typeDef) {
   const group = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: typeDef.color, roughness: 0.65, metalness: 0.2 });
-  const visorMat = new THREE.MeshBasicMaterial({ color: typeDef.visor });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: typeDef.color, roughness: 0.58, metalness: 0.28 });
+  const visorMat = new THREE.MeshStandardMaterial({
+    color: 0x07080a, emissive: typeDef.visor, emissiveIntensity: 1.5, roughness: 0.35, metalness: 0.2 });
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: 0x0c0d10, emissive: typeDef.visor, emissiveIntensity: 0.4, roughness: 0.6 });
 
-  const legL = new THREE.Group(); legL.position.set(-0.14, 0.95, 0); group.add(legL);
-  const legR = new THREE.Group(); legR.position.set(0.14, 0.95, 0); group.add(legR);
-  part(0.17, 0.95, 0.21, DARK, 0, -0.475, 0, legL);
-  part(0.17, 0.95, 0.21, DARK, 0, -0.475, 0, legR);
-  part(0.2, 0.1, 0.3, DARK, 0, -0.92, -0.04, legL); // boots
-  part(0.2, 0.1, 0.3, DARK, 0, -0.92, -0.04, legR);
+  // --- Legs: thigh (fabric), knee pad (plate), shin (gear), boot. ---
+  function buildLeg(side) {
+    const leg = new THREE.Group();
+    leg.position.set(0.13 * side, 0.95, 0);
+    group.add(leg);
+    part(0.17, 0.46, 0.2, FABRIC, 0, -0.23, 0, leg); // thigh
+    part(0.18, 0.15, 0.06, bodyMat, 0, -0.47, -0.11, leg); // knee pad
+    part(0.15, 0.4, 0.17, DARK, 0, -0.68, 0, leg); // shin
+    part(0.16, 0.1, 0.28, DARK, 0, -0.92, -0.05, leg); // boot
+    part(0.06, 0.16, 0.15, DARK, 0.115 * side, -0.25, 0, leg); // thigh pouch
+    return leg;
+  }
+  const legL = buildLeg(-1);
+  const legR = buildLeg(1);
 
+  // --- Torso: pelvis, belt + pouches, segmented plates, chest rig, backpack + radio. ---
   const torso = new THREE.Group(); torso.position.set(0, 0.95, 0); group.add(torso);
   const scale = typeDef.id === 'heavy' ? 1.18 : 1;
   torso.scale.set(scale, 1, scale);
-  part(0.52, 0.74, 0.3, bodyMat, 0, 0.37, 0, torso); // chest
-  part(0.56, 0.4, 0.36, DARK, 0, 0.42, 0, torso); // vest
-  part(0.2, 0.14, 0.34, bodyMat, -0.36, 0.62, 0, torso); // shoulder pads
-  part(0.2, 0.14, 0.34, bodyMat, 0.36, 0.62, 0, torso);
+  part(0.42, 0.2, 0.27, FABRIC, 0, 0.04, 0, torso); // pelvis
+  part(0.44, 0.09, 0.29, DARK, 0, 0.14, 0, torso); // belt
+  part(0.11, 0.13, 0.06, DARK, -0.13, 0.1, -0.17, torso); // belt pouches
+  part(0.11, 0.13, 0.06, DARK, 0.13, 0.1, -0.17, torso);
+  part(0.4, 0.2, 0.28, bodyMat, 0, 0.3, 0, torso); // abdomen plate
+  part(0.52, 0.36, 0.31, bodyMat, 0, 0.55, 0, torso); // chest plate
+  part(0.54, 0.18, 0.34, FABRIC, 0, 0.5, 0, torso); // chest rig band
+  for (const px of [-0.15, 0, 0.15]) part(0.1, 0.14, 0.05, DARK, px, 0.48, -0.19, torso); // mag pouches
+  part(0.26, 0.035, 0.012, accentMat, 0, 0.68, -0.16, torso); // unit stripe
+  part(0.46, 0.4, 0.06, bodyMat, 0, 0.52, 0.17, torso); // back plate
+  part(0.38, 0.42, 0.15, DARK, 0, 0.5, 0.27, torso); // backpack
+  part(0.3, 0.12, 0.12, FABRIC, 0, 0.76, 0.27, torso); // backpack top pouch
+  part(0.13, 0.18, 0.06, DARK, 0.1, 0.84, 0.28, torso); // radio
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.36, 5), DARK);
+  antenna.position.set(0.14, 1.08, 0.28);
+  torso.add(antenna);
+  part(0.23, 0.15, 0.3, bodyMat, -0.35, 0.7, 0, torso); // pauldrons
+  part(0.23, 0.15, 0.3, bodyMat, 0.35, 0.7, 0, torso);
+  part(0.3, 0.1, 0.3, FABRIC, 0, 0.78, 0, torso); // collar
 
+  // --- Head: helmet shell, brim, face guard, emissive visor, rails, NVG mount. ---
   const head = new THREE.Group(); head.position.set(0, 0.82, 0); torso.add(head);
-  part(0.27, 0.3, 0.29, bodyMat, 0, 0.13, 0, head); // helmet
-  const visor = part(0.24, 0.07, 0.02, visorMat, 0, 0.14, -0.15, head);
+  part(0.28, 0.27, 0.3, bodyMat, 0, 0.15, 0, head); // helmet
+  part(0.31, 0.045, 0.35, DARK, 0, 0.05, 0, head); // brim
+  part(0.23, 0.13, 0.26, FABRIC, 0, -0.03, 0, head); // face guard
+  const visor = part(0.25, 0.06, 0.02, visorMat, 0, 0.15, -0.155, head);
   visor.castShadow = false;
+  part(0.035, 0.09, 0.2, DARK, -0.155, 0.13, 0, head); // side rails
+  part(0.035, 0.09, 0.2, DARK, 0.155, 0.13, 0, head);
+  part(0.07, 0.06, 0.07, DARK, 0, 0.31, -0.08, head); // NVG mount
+  part(0.12, 0.1, 0.05, DARK, 0, 0.12, 0.17, head); // counterweight pouch
 
-  const armR = new THREE.Group(); armR.position.set(0.36, 0.62, 0); torso.add(armR);
-  part(0.13, 0.55, 0.15, bodyMat, 0, -0.2, -0.05, armR);
-  const gun = part(0.07, 0.1, 0.62, GUN, 0.02, -0.42, -0.3, armR);
-  gun.castShadow = false;
-  const armL = new THREE.Group(); armL.position.set(-0.36, 0.62, 0); torso.add(armL);
-  part(0.13, 0.5, 0.15, bodyMat, 0, -0.16, -0.12, armL);
+  // --- Arms: armoured upper arm, fabric forearm, glove; the gun arm keeps its gun. ---
+  function buildArm(side, withGun) {
+    const arm = new THREE.Group();
+    arm.position.set(0.36 * side, 0.62, 0);
+    torso.add(arm);
+    part(0.14, 0.32, 0.16, bodyMat, 0, -0.14, 0, arm); // upper arm
+    part(0.15, 0.1, 0.17, DARK, 0, -0.31, 0, arm); // elbow pad
+    part(0.12, 0.28, 0.14, FABRIC, 0, -0.45, -0.02, arm); // forearm
+    part(0.11, 0.13, 0.13, DARK, 0, -0.63, -0.03, arm); // glove
+    if (withGun) {
+      const gun = part(0.07, 0.1, 0.62, GUN, 0.02, -0.42, -0.3, arm);
+      gun.castShadow = false;
+      part(0.05, 0.14, 0.08, DARK, 0.02, -0.52, -0.12, arm); // magazine
+    }
+    return arm;
+  }
+  const armR = buildArm(1, true);
+  const armL = buildArm(-1, false);
 
   return { group, legL, legR, torso, head, armR, armL, bodyMat };
 }
