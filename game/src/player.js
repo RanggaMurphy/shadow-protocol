@@ -1,7 +1,7 @@
 // The operator: first-person controller with walk/sprint/crouch/jump, head-bob, footsteps,
 // landing, recoil kick and screen shake on the camera, plus health/armor bookkeeping.
 // Movement collides against the facility grid and props via map.collide.
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 import { PLAYER } from './config.js';
 import { collide } from './map.js';
 

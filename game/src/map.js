@@ -3,7 +3,7 @@
 // storage in the middle band, an entry hall, and an open yard to the south where the operator
 // starts and the extraction pad waits. This file builds the geometry (instanced walls, floors,
 // ceiling, props), the lights, the collision data and the grid pathfinding every mover uses.
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 import { TILE, WALL_HEIGHT } from './config.js';
 import { makeTextures } from './textures.js';
 

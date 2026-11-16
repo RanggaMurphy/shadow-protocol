@@ -1,6 +1,6 @@
 // Every texture in SHADOW PROTOCOL is painted on a canvas at load: wall panels, floors, asphalt,
 // crates, server racks, screens and barrels. No image files exist anywhere in the game.
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 
 function canvasTexture(size, painter, repeat = 1) {
   const canvas = document.createElement('canvas');

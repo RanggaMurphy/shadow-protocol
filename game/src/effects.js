@@ -1,7 +1,7 @@
 // Combat feel lives here: pooled particles (sparks, hit bursts, smoke, explosion fire), tracer
 // rounds, two reusable dynamic lights for muzzle flashes and explosions, and shockwave rings.
 // Everything is pre-allocated and additive-blended, so effects cost no per-frame allocation.
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 
 const MAX_PARTICLES = 1600;
 

@@ -2,7 +2,7 @@
 // silhouette, barrel, magazine and sight), plus the firing brain — rate of fire, spread bloom,
 // recoil, reload timing, weapon switching, ADS zoom, muzzle flash, tracers and hit reporting.
 // Hits are resolved by a raycast callback the main loop provides (world + enemies).
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 import { WEAPONS } from './config.js';
 
 const GUNMETAL = new THREE.MeshStandardMaterial({ color: 0x39414d, roughness: 0.38, metalness: 0.6, emissive: 0x0d1118 });

@@ -3,7 +3,7 @@
 // The AI perceives through line-of-sight, pathfinds on the facility grid, advances, takes cover
 // when hurt, and fires accuracy-rolled bursts. Four types fly the brief's variety: trooper,
 // rusher, marksman and the armoured heavy.
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 import { ENEMY_TYPES } from './config.js';
 import { findPath, lineOfSight, collide } from './map.js';
 

@@ -3,7 +3,7 @@
 // prop AABBs + enemy spheres), explosive barrels, supply pickups, the campaign mission state
 // machine (infiltrate → eliminate → terminal → extraction), survival waves, menus/settings,
 // and the deterministic ?shot= staging hooks used to capture real screenshots headlessly.
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
 import { TILE, MISSION, ENEMY_TYPES } from './config.js';
 import { buildFacility, isSolid, cellOf, centreOf, COLS, ROWS } from './map.js';
 import { createAudio } from './audio.js';
